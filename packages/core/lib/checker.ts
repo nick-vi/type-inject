@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { DiagnosticCategory, Project } from "ts-morph";
+import { type DiagnosticMessageChain, DiagnosticCategory, Project, ts } from "ts-morph";
 
 export type Diagnostic = {
 	file: string;
@@ -60,6 +60,13 @@ function mapCategoryToSeverity(category: DiagnosticCategory): number {
 	}
 }
 
+function flattenMessageText(
+	msg: string | DiagnosticMessageChain,
+): string {
+	if (typeof msg === "string") return msg;
+	return ts.flattenDiagnosticMessageText(msg.compilerObject, "\n");
+}
+
 export function getProjectDiagnostics(
 	tsconfigPath: string,
 	filePath?: string,
@@ -94,7 +101,7 @@ export function getProjectDiagnostics(
 				file: fileDiagPath,
 				line: lineAndCol.line,
 				col: lineAndCol.column,
-				message: diagnostic.getMessageText().toString(),
+				message: flattenMessageText(diagnostic.getMessageText()),
 				code: diagnostic.getCode(),
 				severity: mapCategoryToSeverity(diagnostic.getCategory()),
 			});
