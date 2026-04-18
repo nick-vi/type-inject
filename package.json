@@ -13,8 +13,8 @@
 		"release": "bun run scripts/resolve-workspace-deps.ts && changeset publish"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.3.12",
-		"@changesets/cli": "^2.29.8",
+		"@biomejs/biome": "^2.4.12",
+		"@changesets/cli": "^2.31.0",
 		"@types/bun": "latest"
 	}
 }

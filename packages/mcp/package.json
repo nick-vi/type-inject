@@ -1,6 +1,6 @@
 {
 	"name": "@nick-vi/type-inject-mcp",
-	"version": "1.1.1",
+	"version": "1.1.2",
 	"description": "MCP server for TypeScript type lookup",
 	"type": "module",
 	"bin": {
