@@ -1,6 +1,6 @@
 {
 	"name": "@nick-vi/claude-type-inject-hook",
-	"version": "1.1.1",
+	"version": "1.1.2",
 	"description": "Claude Code Read hook for TypeScript type injection",
 	"type": "module",
 	"bin": {

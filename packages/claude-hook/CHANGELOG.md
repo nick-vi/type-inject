@@ -1,5 +1,13 @@
 # @nick-vi/claude-type-inject-hook
 
+## 1.1.2
+
+### Patch Changes
+
+- e977763: Fix OpenCode plugin loading with a ts-morph compatibility wrapper and make type_check report explicit failures when tsc cannot run.
+- Updated dependencies [e977763]
+  - @nick-vi/type-inject-core@1.1.2
+
 ## 1.1.1
 
 ### Patch Changes

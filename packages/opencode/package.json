@@ -1,6 +1,6 @@
 {
 	"name": "@nick-vi/opencode-type-inject",
-	"version": "1.5.1",
+	"version": "1.5.2",
 	"description": "OpenCode plugin that auto-injects TypeScript types into file reads",
 	"type": "module",
 	"main": "./.opencode/plugin/type-inject.ts",
