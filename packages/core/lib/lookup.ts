@@ -2,10 +2,11 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import {
 	Project,
+	type TsMorphProject,
 	type SourceFile,
 	SyntaxKind,
 	VariableDeclarationKind,
-} from "ts-morph";
+} from "./ts-morph.ts";
 import {
 	extractSvelteScripts,
 	loadSvelteParser,
@@ -61,7 +62,7 @@ export type LookupResult = {
 };
 
 export class TypeLookup {
-	private project: Project;
+	private project: TsMorphProject;
 	private directory: string;
 	private config: Config;
 	private svelteParser: SvelteParser | null = null;

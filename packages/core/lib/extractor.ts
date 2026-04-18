@@ -1,10 +1,11 @@
 import * as path from "node:path";
 import {
 	Project,
+	type TsMorphProject,
 	type SourceFile,
 	SyntaxKind,
 	VariableDeclarationKind,
-} from "ts-morph";
+} from "./ts-morph.ts";
 import {
 	extractSvelteScripts,
 	loadSvelteParser,
@@ -13,7 +14,7 @@ import {
 import type { Config, ExtractedType } from "./types.ts";
 
 export class TypeExtractor {
-	private project: Project;
+	private project: TsMorphProject;
 	private config: Config;
 	private directory: string;
 	private svelteParser: SvelteParser | null = null;

@@ -1,5 +1,5 @@
 import * as fs from "node:fs";
-import type { Project, SourceFile } from "ts-morph";
+import type { SourceFile, TsMorphProject as Project } from "./ts-morph.ts";
 
 export type SvelteScript = {
 	sourceFile: SourceFile;
