@@ -1,6 +1,6 @@
+import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { DiagnosticCategory, Project } from "ts-morph";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 
 export type Diagnostic = {
 	file: string;
@@ -14,6 +14,7 @@ export type Diagnostic = {
 export type CheckResult = {
 	success: boolean;
 	diagnostics: Diagnostic[];
+	error?: string;
 };
 
 /**
@@ -40,76 +41,107 @@ export function findNearestTsconfig(
 	return null;
 }
 
-/**
- * Map TypeScript DiagnosticCategory to severity level.
- * TypeScript: Warning=0, Error=1, Suggestion=2, Message=3
- * Severity: 1=Error, 2=Warning, 3=Info, 4=Hint
- */
-function mapCategoryToSeverity(category: DiagnosticCategory): number {
-	switch (category) {
-		case DiagnosticCategory.Error:
-			return 1;
-		case DiagnosticCategory.Warning:
-			return 2;
-		case DiagnosticCategory.Message:
-			return 3;
-		case DiagnosticCategory.Suggestion:
-			return 4;
-		default:
-			return 1;
+const TSC_DIAGNOSTIC_RE =
+	/^(.+)\((\d+),(\d+)\): (error|warning|message) TS(\d+): (.+)$/;
+
+function findTscBinary(startDir: string): string {
+	let dir = startDir;
+	while (true) {
+		const candidate = join(dir, "node_modules", ".bin", "tsc");
+		if (existsSync(candidate)) {
+			return candidate;
+		}
+		const parent = dirname(dir);
+		if (parent === dir) break;
+		dir = parent;
 	}
+	return "tsc";
+}
+
+function parseTscOutput(output: string): Diagnostic[] {
+	const diagnostics: Diagnostic[] = [];
+	for (const line of output.split("\n")) {
+		const match = TSC_DIAGNOSTIC_RE.exec(line);
+		if (!match) continue;
+		const [, file, lineStr, colStr, category, codeStr, message] =
+			match as RegExpExecArray &
+				[string, string, string, string, string, string, string];
+		diagnostics.push({
+			file,
+			line: Number(lineStr),
+			col: Number(colStr),
+			message,
+			code: Number(codeStr),
+			severity: category === "error" ? 1 : category === "warning" ? 2 : 3,
+		});
+	}
+	return diagnostics;
 }
 
 export function getProjectDiagnostics(
 	tsconfigPath: string,
 	filePath?: string,
 ): CheckResult {
-	try {
-		const project = new Project({
-			tsConfigFilePath: tsconfigPath,
-			skipAddingFilesFromTsConfig: false,
-		});
+	const projectDir = dirname(tsconfigPath);
+	const tscBin = findTscBinary(projectDir);
 
-		const preEmitDiagnostics = project.getPreEmitDiagnostics();
-		const diagnostics: Diagnostic[] = [];
+	const result = spawnSync(
+		tscBin,
+		["--noEmit", "--pretty", "false", "--project", tsconfigPath],
+		{ encoding: "utf8", timeout: 60_000, cwd: projectDir },
+	);
 
-		for (const diagnostic of preEmitDiagnostics) {
-			const sourceFile = diagnostic.getSourceFile();
-			if (!sourceFile) continue;
-
-			const fileDiagPath = sourceFile.getFilePath();
-
-			if (
-				filePath &&
-				!fileDiagPath.endsWith(filePath) &&
-				fileDiagPath !== filePath
-			) {
-				continue;
-			}
-
-			const start = diagnostic.getStart();
-			const lineAndCol = sourceFile.getLineAndColumnAtPos(start ?? 0);
-
-			diagnostics.push({
-				file: fileDiagPath,
-				line: lineAndCol.line,
-				col: lineAndCol.column,
-				message: diagnostic.getMessageText().toString(),
-				code: diagnostic.getCode(),
-				severity: mapCategoryToSeverity(diagnostic.getCategory()),
-			});
-		}
-
+	if (result.error) {
 		return {
-			success: diagnostics.length === 0,
-			diagnostics,
-		};
-	} catch {
-		return {
-			success: true,
+			success: false,
 			diagnostics: [],
+			error: `Failed to run tsc: ${result.error.message}`,
 		};
 	}
+
+	if (result.signal) {
+		return {
+			success: false,
+			diagnostics: [],
+			error: `tsc terminated by signal: ${result.signal}`,
+		};
+	}
+
+	const stdout = result.stdout || "";
+	const stderr = result.stderr || "";
+	let diagnostics = parseTscOutput(`${stdout}\n${stderr}`);
+
+	// Resolve diagnostic file paths to absolute (tsc outputs relative to projectDir)
+	for (const d of diagnostics) {
+		if (!isAbsolute(d.file)) {
+			d.file = resolve(projectDir, d.file);
+		}
+	}
+
+	if (filePath) {
+		// filePath may be absolute or relative to any directory,
+		// so normalize the diagnostic path and compare basenames as fallback
+		const absoluteFilePath = isAbsolute(filePath)
+			? filePath
+			: resolve(projectDir, filePath);
+		diagnostics = diagnostics.filter(
+			(d) => d.file === absoluteFilePath || d.file.endsWith(filePath),
+		);
+	}
+
+	if (result.status !== 0 && diagnostics.length === 0) {
+		const errorOutput = stderr.trim() || stdout.trim();
+		return {
+			success: false,
+			diagnostics: [],
+			error: errorOutput || "tsc failed without parseable output",
+		};
+	}
+
+	return {
+		success: result.status === 0 && diagnostics.length === 0,
+		diagnostics,
+	};
 }
 
 export function formatDiagnostics(

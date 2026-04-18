@@ -219,6 +219,10 @@ export const TypeInjectPlugin: Plugin = async ({ directory }) => {
 
 					const result = getProjectDiagnostics(effectiveTsconfig, args.file);
 
+					if (result.error) {
+						return result.error;
+					}
+
 					if (result.success) {
 						if (args.file) {
 							return `No TypeScript errors found in ${args.file}`;

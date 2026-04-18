@@ -189,6 +189,13 @@ server.registerTool(
 
 		const result = getProjectDiagnostics(tsconfigPath, file);
 
+		if (result.error) {
+			return {
+				content: [{ type: "text", text: result.error }],
+				isError: true,
+			};
+		}
+
 		if (result.success || result.diagnostics.length === 0) {
 			const target = file ? `File "${file}"` : "Project";
 			return {

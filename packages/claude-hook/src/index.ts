@@ -124,6 +124,10 @@ function handleWrite(filePath: string) {
 	try {
 		const result = getProjectDiagnostics(tsconfigPath);
 
+		if (result.error) {
+			process.exit(0);
+		}
+
 		if (result.success || result.diagnostics.length === 0) {
 			process.exit(0);
 		}
