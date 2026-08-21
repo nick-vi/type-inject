@@ -104,6 +104,38 @@ export class TypeLookup {
 			});
 		}
 
+		// Solution-style tsconfigs ("files": [] with "references", e.g. the
+		// default Vite scaffolding) yield no source files on their own.
+		// Fall back to the first referenced tsconfig that includes files so
+		// lookup tools still see the project's types.
+		if (this.project.getSourceFiles().length === 0) {
+			try {
+				const raw: {
+					references?: { path: string }[];
+				} = JSON.parse(
+					fs.readFileSync(tsConfigPath, "utf8").replace(/^\s*\/\/.*$/gm, ""),
+				);
+				for (const ref of raw.references ?? []) {
+					const refTsconfigPath = path.resolve(directory, ref.path);
+					if (!fs.existsSync(refTsconfigPath)) {
+						continue;
+					}
+					const candidate = new Project({
+						tsConfigFilePath: refTsconfigPath,
+						compilerOptions: {
+							allowJs: true,
+						},
+					});
+					if (candidate.getSourceFiles().length > 0) {
+						this.project = candidate;
+						break;
+					}
+				}
+			} catch {
+				// Malformed tsconfig or references - keep the original project
+			}
+		}
+
 		// Try to load svelte compiler (optional peer dependency)
 		this.svelteParser = loadSvelteParser();
 

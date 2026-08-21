@@ -129,3 +129,35 @@ describe("TypeLookup - Svelte files", () => {
 		expect(stats.totalFiles).toBeGreaterThan(5);
 	});
 });
+
+describe("TypeLookup - solution-style tsconfig", () => {
+	const solutionDir = path.join(import.meta.dir, "fixtures", "solution-style");
+
+	test("indexes types via referenced tsconfig when root has no files", () => {
+		const lookup = new TypeLookup(solutionDir, testConfig);
+		const result = lookup.findType("BuildStatus", { exact: true });
+
+		expect(result.found).toBe(true);
+		expect(result.types[0]?.name).toBe("BuildStatus");
+	});
+
+	test("finds functions and interfaces from referenced project", () => {
+		const lookup = new TypeLookup(solutionDir, testConfig);
+
+		const fn = lookup.findType("formatBuildStatus", { exact: true });
+		expect(fn.found).toBe(true);
+		expect(fn.types[0]?.kind).toBe("function");
+
+		const iface = lookup.findType("BuildInfo", { exact: true });
+		expect(iface.found).toBe(true);
+		expect(iface.types[0]?.kind).toBe("interface");
+	});
+
+	test("listTypeNames is not empty", () => {
+		const lookup = new TypeLookup(solutionDir, testConfig);
+		const names = lookup.listTypeNames({ limit: 50 });
+
+		expect(names.length).toBeGreaterThan(0);
+		expect(names.some((n) => n.name === "BuildStatus")).toBe(true);
+	});
+});
