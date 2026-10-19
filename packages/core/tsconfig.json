@@ -18,5 +18,9 @@
 		"noPropertyAccessFromIndexSignature": false
 	},
 	"include": ["lib/**/*", "tests/**/*"],
-	"exclude": ["tests/fixtures/svelte/ts-imports-svelte.ts", "node_modules"]
+	"exclude": [
+		"tests/fixtures/svelte/ts-imports-svelte.ts",
+		"tests/fixtures/typecheck",
+		"node_modules"
+	]
 }
