@@ -10,9 +10,11 @@ Full plugin with automatic type injection on file reads and MCP tools:
 
 ```json
 {
-  "plugin": ["@nick-vi/opencode-type-inject"]
+  "plugins": ["@nick-vi/opencode-type-inject"]
 }
 ```
+
+Works with OpenCode v2 and v1 (>=1.3.4). On v1, use the `"plugin"` key instead of `"plugins"`; v2 accepts either.
 
 Or MCP server only (tools only, no auto-injection):
 

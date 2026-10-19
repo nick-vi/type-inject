@@ -17,5 +17,5 @@
 		"noUnusedParameters": false,
 		"noPropertyAccessFromIndexSignature": false
 	},
-	"include": [".opencode/**/*", "*.ts"]
+	"include": [".opencode/**/*", "tests/**/*", "*.ts"]
 }
