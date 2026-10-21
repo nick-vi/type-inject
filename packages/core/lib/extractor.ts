@@ -1,16 +1,17 @@
 import * as path from "node:path";
 import {
-	Project,
-	type TsMorphProject,
-	type SourceFile,
-	SyntaxKind,
-	VariableDeclarationKind,
-} from "./ts-morph.ts";
-import {
 	extractSvelteScripts,
 	loadSvelteParser,
 	type SvelteParser,
 } from "./svelte-utils.ts";
+import {
+	type ArrowFunction,
+	Project,
+	type SourceFile,
+	SyntaxKind,
+	type TsMorphProject,
+	VariableDeclarationKind,
+} from "./ts-morph.ts";
 import type { Config, ExtractedType } from "./types.ts";
 
 export class TypeExtractor {
@@ -664,13 +665,23 @@ export class TypeExtractor {
 			const isFuncExpr = kind === SyntaxKind.FunctionExpression;
 			if (!isArrowFunc && !isFuncExpr) continue;
 
-			// Only include if it has an explicit type annotation
+			// Prefer the variable's explicit type annotation. For untyped
+			// arrow functions, fall back to an explicit return type
+			// annotation on the arrow itself (e.g. `const f = (x): T => ...`),
+			// so the signature stays accurate instead of dropping the
+			// declaration entirely.
 			const typeNode = variable.getTypeNode();
-			if (!typeNode) continue;
+			let explicitType = typeNode?.getText();
+			if (!explicitType && isArrowFunc) {
+				const returnTypeNode = (
+					initializer as ArrowFunction
+				).getReturnTypeNode();
+				explicitType = returnTypeNode?.getText();
+			}
+			if (!explicitType) continue;
 
 			const name = variable.getName();
 			const exported = varStatement.isExported();
-			const explicitType = typeNode.getText();
 			const signature = `const ${name}: ${explicitType}`;
 
 			// Get JSDoc if enabled
@@ -713,11 +724,6 @@ export class TypeExtractor {
 
 		for (const importDecl of imports) {
 			const moduleSpecifier = importDecl.getModuleSpecifierValue();
-
-			// Skip node_modules imports (only process relative imports)
-			if (!moduleSpecifier.startsWith(".")) {
-				continue;
-			}
 
 			// Skip type-only imports if disabled
 			if (importDecl.isTypeOnly() && !this.config.imports.includeTypeOnly) {
@@ -782,6 +788,18 @@ export class TypeExtractor {
 				if (!moduleSourceFile) continue;
 
 				const importPath = moduleSourceFile.getFilePath();
+
+				// Non-relative specifiers (path aliases, bare packages) are
+				// followed only when they resolve inside the project
+				// directory; never descend into node_modules.
+				const isRelativeSpecifier = moduleSpecifier.startsWith(".");
+				if (
+					!isRelativeSpecifier &&
+					(importPath.includes("/node_modules/") ||
+						!importPath.startsWith(this.directory + path.sep))
+				) {
+					continue;
+				}
 
 				// Avoid circular imports
 				if (processedFiles.has(importPath)) {
