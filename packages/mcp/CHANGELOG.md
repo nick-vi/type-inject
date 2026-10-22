@@ -1,5 +1,12 @@
 # @nick-vi/type-inject-mcp
 
+## 1.1.3
+
+### Patch Changes
+
+- Updated dependencies [add4bdb]
+  - @nick-vi/type-inject-core@1.1.3
+
 ## 1.1.2
 
 ### Patch Changes
