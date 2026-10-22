@@ -673,10 +673,26 @@ export class TypeExtractor {
 			const typeNode = variable.getTypeNode();
 			let explicitType = typeNode?.getText();
 			if (!explicitType && isArrowFunc) {
-				const returnTypeNode = (
-					initializer as ArrowFunction
-				).getReturnTypeNode();
-				explicitType = returnTypeNode?.getText();
+				// Emit the full function type (params + return type), e.g.
+				// `const f: (x: number) => Promise<T[]>`, so a return-typed
+				// arrow doesn't read as a plain value of the return type.
+				// Type parameters are valid in type position; `async` is not
+				// (the Promise return type already carries asynchronicity).
+				// Parameter texts (defaults, rest) are valid as written.
+				const arrow = initializer as ArrowFunction;
+				const returnTypeNode = arrow.getReturnTypeNode();
+				if (returnTypeNode) {
+					const paramsText = arrow
+						.getParameters()
+						.map((p) => p.getText())
+						.join(", ");
+					const typeParams = arrow
+						.getTypeParameters()
+						.map((tp) => tp.getText());
+					const generics =
+						typeParams.length > 0 ? `<${typeParams.join(", ")}>` : "";
+					explicitType = `${generics}(${paramsText}) => ${returnTypeNode.getText()}`;
+				}
 			}
 			if (!explicitType) continue;
 
@@ -791,14 +807,17 @@ export class TypeExtractor {
 
 				// Non-relative specifiers (path aliases, bare packages) are
 				// followed only when they resolve inside the project
-				// directory; never descend into node_modules.
+				// directory; never descend into node_modules. path.relative
+				// keeps the boundary check correct on Windows too, where
+				// ts-morph still reports `/`-separated file paths.
 				const isRelativeSpecifier = moduleSpecifier.startsWith(".");
-				if (
-					!isRelativeSpecifier &&
-					(importPath.includes("/node_modules/") ||
-						!importPath.startsWith(this.directory + path.sep))
-				) {
-					continue;
+				if (!isRelativeSpecifier) {
+					const relImportPath = path.relative(this.directory, importPath);
+					const isInsideProject =
+						!relImportPath.startsWith("..") && !path.isAbsolute(relImportPath);
+					if (importPath.includes("/node_modules/") || !isInsideProject) {
+						continue;
+					}
 				}
 
 				// Avoid circular imports

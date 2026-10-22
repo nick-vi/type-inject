@@ -418,7 +418,9 @@ describe("TypeExtractor - Svelte files", () => {
 			"./tests/fixtures/svelte/ModuleScript.svelte",
 		);
 	});
+});
 
+describe("TypeExtractor - path aliases and return-typed arrows", () => {
 	test("extracts arrow functions with return type annotations", () => {
 		const extractor = new TypeExtractor(rootDir, testConfig);
 		const types = extractor.extract(
@@ -430,9 +432,10 @@ describe("TypeExtractor - Svelte files", () => {
 			.map((t) => t.name);
 
 		// Arrow function with only a return type annotation is extracted
+		// with its full function signature
 		expect(functionNames).toContain("scale");
 		const scale = types.find((t) => t.name === "scale");
-		expect(scale?.signature).toBe("const scale: number");
+		expect(scale?.signature).toBe("const scale: (n: number) => number");
 
 		// Arrow function without any annotation is still skipped
 		expect(functionNames).not.toContain("add");
@@ -449,10 +452,11 @@ describe("TypeExtractor - Svelte files", () => {
 		expect(typeNames).toContain("Task");
 		expect(typeNames).toContain("TaskStatus");
 
-		// Arrow function with an explicit return type annotation
+		// Arrow function with an explicit return type annotation gets its
+		// full function signature
 		expect(typeNames).toContain("makeTask");
 		const makeTask = types.find((t) => t.name === "makeTask");
-		expect(makeTask?.signature).toBe("const makeTask: Task");
+		expect(makeTask?.signature).toBe("const makeTask: (id: string) => Task");
 
 		// Typed const using an imported type is used but plain typed consts
 		// are not extracted by design (only as-const/Object.freeze)
