@@ -118,6 +118,17 @@ export function getProjectDiagnostics(
 		}
 	}
 
+	// tsc failed without any parseable diagnostics (e.g. bad tsconfig, crash).
+	// Checked before filtering so errors in other files don't look like a failure.
+	if (result.status !== 0 && diagnostics.length === 0) {
+		const errorOutput = stderr.trim() || stdout.trim();
+		return {
+			success: false,
+			diagnostics: [],
+			error: errorOutput || "tsc failed without parseable output",
+		};
+	}
+
 	if (filePath) {
 		// filePath may be absolute or relative to any directory,
 		// so normalize the diagnostic path and compare basenames as fallback
@@ -129,17 +140,8 @@ export function getProjectDiagnostics(
 		);
 	}
 
-	if (result.status !== 0 && diagnostics.length === 0) {
-		const errorOutput = stderr.trim() || stdout.trim();
-		return {
-			success: false,
-			diagnostics: [],
-			error: errorOutput || "tsc failed without parseable output",
-		};
-	}
-
 	return {
-		success: result.status === 0 && diagnostics.length === 0,
+		success: diagnostics.length === 0,
 		diagnostics,
 	};
 }
