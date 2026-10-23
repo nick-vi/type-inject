@@ -1,16 +1,17 @@
 import * as path from "node:path";
 import {
-	Project,
-	type TsMorphProject,
-	type SourceFile,
-	SyntaxKind,
-	VariableDeclarationKind,
-} from "./ts-morph.ts";
-import {
 	extractSvelteScripts,
 	loadSvelteParser,
 	type SvelteParser,
 } from "./svelte-utils.ts";
+import {
+	type ArrowFunction,
+	Project,
+	type SourceFile,
+	SyntaxKind,
+	type TsMorphProject,
+	VariableDeclarationKind,
+} from "./ts-morph.ts";
 import type { Config, ExtractedType } from "./types.ts";
 
 export class TypeExtractor {
@@ -664,13 +665,39 @@ export class TypeExtractor {
 			const isFuncExpr = kind === SyntaxKind.FunctionExpression;
 			if (!isArrowFunc && !isFuncExpr) continue;
 
-			// Only include if it has an explicit type annotation
+			// Prefer the variable's explicit type annotation. For untyped
+			// arrow functions, fall back to an explicit return type
+			// annotation on the arrow itself (e.g. `const f = (x): T => ...`),
+			// so the signature stays accurate instead of dropping the
+			// declaration entirely.
 			const typeNode = variable.getTypeNode();
-			if (!typeNode) continue;
+			let explicitType = typeNode?.getText();
+			if (!explicitType && isArrowFunc) {
+				// Emit the full function type (params + return type), e.g.
+				// `const f: (x: number) => Promise<T[]>`, so a return-typed
+				// arrow doesn't read as a plain value of the return type.
+				// Type parameters are valid in type position; `async` is not
+				// (the Promise return type already carries asynchronicity).
+				// Parameter texts (defaults, rest) are valid as written.
+				const arrow = initializer as ArrowFunction;
+				const returnTypeNode = arrow.getReturnTypeNode();
+				if (returnTypeNode) {
+					const paramsText = arrow
+						.getParameters()
+						.map((p) => p.getText())
+						.join(", ");
+					const typeParams = arrow
+						.getTypeParameters()
+						.map((tp) => tp.getText());
+					const generics =
+						typeParams.length > 0 ? `<${typeParams.join(", ")}>` : "";
+					explicitType = `${generics}(${paramsText}) => ${returnTypeNode.getText()}`;
+				}
+			}
+			if (!explicitType) continue;
 
 			const name = variable.getName();
 			const exported = varStatement.isExported();
-			const explicitType = typeNode.getText();
 			const signature = `const ${name}: ${explicitType}`;
 
 			// Get JSDoc if enabled
@@ -713,11 +740,6 @@ export class TypeExtractor {
 
 		for (const importDecl of imports) {
 			const moduleSpecifier = importDecl.getModuleSpecifierValue();
-
-			// Skip node_modules imports (only process relative imports)
-			if (!moduleSpecifier.startsWith(".")) {
-				continue;
-			}
 
 			// Skip type-only imports if disabled
 			if (importDecl.isTypeOnly() && !this.config.imports.includeTypeOnly) {
@@ -782,6 +804,21 @@ export class TypeExtractor {
 				if (!moduleSourceFile) continue;
 
 				const importPath = moduleSourceFile.getFilePath();
+
+				// Non-relative specifiers (path aliases, bare packages) are
+				// followed only when they resolve inside the project
+				// directory; never descend into node_modules. path.relative
+				// keeps the boundary check correct on Windows too, where
+				// ts-morph still reports `/`-separated file paths.
+				const isRelativeSpecifier = moduleSpecifier.startsWith(".");
+				if (!isRelativeSpecifier) {
+					const relImportPath = path.relative(this.directory, importPath);
+					const isInsideProject =
+						!relImportPath.startsWith("..") && !path.isAbsolute(relImportPath);
+					if (importPath.includes("/node_modules/") || !isInsideProject) {
+						continue;
+					}
+				}
 
 				// Avoid circular imports
 				if (processedFiles.has(importPath)) {
