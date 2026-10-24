@@ -1,0 +1,7 @@
+{
+ // Application project
+ "files": [],
+ "references": [
+  { "path": "../solution-style/tsconfig.app.json" }, /* app */
+ ],
+}

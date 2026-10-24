@@ -1,0 +1,4 @@
+{
+ "files": [],
+ "references": [{"path": "./missing"}, {"path": "../solution-style/tsconfig.app.json"}]
+}

@@ -1,17 +1,18 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import {
-	Project,
-	type TsMorphProject,
-	type SourceFile,
-	SyntaxKind,
-	VariableDeclarationKind,
-} from "./ts-morph.ts";
-import {
 	extractSvelteScripts,
 	loadSvelteParser,
 	type SvelteParser,
 } from "./svelte-utils.ts";
+import {
+	Project,
+	type SourceFile,
+	SyntaxKind,
+	type TsMorphProject,
+	ts,
+	VariableDeclarationKind,
+} from "./ts-morph.ts";
 import type { Config, ExtractedTypeKind } from "./types.ts";
 
 type TypeIndexEntry = {
@@ -102,6 +103,28 @@ export class TypeLookup {
 					allowJs: true,
 				},
 			});
+		}
+
+		// Solution-style tsconfigs have no files of their own. Index every
+		// referenced project while preserving the root compiler options.
+		if (this.project.getSourceFiles().length === 0) {
+			const result = ts.readConfigFile(tsConfigPath, ts.sys.readFile);
+			if (!result.error) {
+				const parsed = ts.parseJsonConfigFileContent(
+					result.config,
+					ts.sys,
+					path.dirname(tsConfigPath),
+				);
+				for (const reference of parsed.projectReferences ?? []) {
+					try {
+						this.project.addSourceFilesFromTsConfig(
+							ts.resolveProjectReferencePath(reference),
+						);
+					} catch {
+						// An unavailable reference must not hide other projects' types.
+					}
+				}
+			}
 		}
 
 		// Try to load svelte compiler (optional peer dependency)
