@@ -161,3 +161,28 @@ describe("TypeLookup - solution-style tsconfig", () => {
 		expect(names.some((n) => n.name === "BuildStatus")).toBe(true);
 	});
 });
+
+describe("TypeLookup - project reference formats", () => {
+	for (const { fixture, names } of [
+		{ fixture: "solution-comments", names: ["BuildStatus"] },
+		{ fixture: "solution-multiple", names: ["BuildStatus", "NodeEnvironment"] },
+		{ fixture: "solution-directory", names: ["NodeEnvironment"] },
+		{ fixture: "solution-missing", names: ["BuildStatus"] },
+	]) {
+		test(`indexes referenced types in ${fixture}`, () => {
+			const lookup = new TypeLookup(
+				path.join(import.meta.dir, "fixtures", fixture),
+				testConfig,
+			);
+			for (const name of names) {
+				const result = lookup.findType(name, { exact: true });
+				expect(result.found).toBe(true);
+				expect(result.types[0]?.name).toBe(name);
+			}
+			const listed = lookup.listTypeNames().map((entry) => entry.name);
+			for (const name of names) {
+				expect(listed).toContain(name);
+			}
+		});
+	}
+});
