@@ -84,11 +84,16 @@ export function getProjectDiagnostics(
 ): CheckResult {
 	const projectDir = dirname(tsconfigPath);
 	const tscBin = findTscBinary(projectDir);
+	// On Windows, node_modules/.bin/tsc is an extensionless shim that
+	// child_process cannot spawn directly; run through cmd so PATHEXT
+	// resolves the .cmd shim, and quote paths that contain spaces.
+	const isWindows = process.platform === "win32";
+	const args = ["--noEmit", "--pretty", "false", "--project", tsconfigPath];
 
 	const result = spawnSync(
-		tscBin,
-		["--noEmit", "--pretty", "false", "--project", tsconfigPath],
-		{ encoding: "utf8", timeout: 60_000, cwd: projectDir },
+		isWindows ? `"${tscBin}"` : tscBin,
+		args.map((arg) => (isWindows && arg.includes(" ") ? `"${arg}"` : arg)),
+		{ encoding: "utf8", timeout: 60_000, cwd: projectDir, shell: isWindows },
 	);
 
 	if (result.error) {
