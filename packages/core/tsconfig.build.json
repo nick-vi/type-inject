@@ -9,7 +9,8 @@
 		"rootDir": "./lib",
 		"strict": true,
 		"skipLibCheck": true,
-		"allowImportingTsExtensions": true
+		"allowImportingTsExtensions": true,
+		"types": ["node"]
 	},
 	"include": ["lib/**/*"],
 	"exclude": ["node_modules", "dist"]
