@@ -419,3 +419,47 @@ describe("TypeExtractor - Svelte files", () => {
 		);
 	});
 });
+
+describe("TypeExtractor - path aliases and return-typed arrows", () => {
+	test("extracts arrow functions with return type annotations", () => {
+		const extractor = new TypeExtractor(rootDir, testConfig);
+		const types = extractor.extract(
+			path.join(fixturesDir, "arrow-return-annotation.ts"),
+		);
+
+		const functionNames = types
+			.filter((t) => t.kind === "function")
+			.map((t) => t.name);
+
+		// Arrow function with only a return type annotation is extracted
+		// with its full function signature
+		expect(functionNames).toContain("scale");
+		const scale = types.find((t) => t.name === "scale");
+		expect(scale?.signature).toBe("const scale: (n: number) => number");
+
+		// Arrow function without any annotation is still skipped
+		expect(functionNames).not.toContain("add");
+	});
+
+	test("resolves path-alias imports and extracts return-typed arrow functions", () => {
+		const projectDir = path.join(fixturesDir, "alias-project");
+		const extractor = new TypeExtractor(projectDir, testConfig);
+		const types = extractor.extract(path.join(projectDir, "src/app.ts"));
+
+		const typeNames = types.map((t) => t.name);
+
+		// Types imported through the "@/lib/models" path alias
+		expect(typeNames).toContain("Task");
+		expect(typeNames).toContain("TaskStatus");
+
+		// Arrow function with an explicit return type annotation gets its
+		// full function signature
+		expect(typeNames).toContain("makeTask");
+		const makeTask = types.find((t) => t.name === "makeTask");
+		expect(makeTask?.signature).toBe("const makeTask: (id: string) => Task");
+
+		// Typed const using an imported type is used but plain typed consts
+		// are not extracted by design (only as-const/Object.freeze)
+		expect(typeNames).not.toContain("defaultStatus");
+	});
+});

@@ -6,6 +6,7 @@ const tsMorph = require("ts-morph") as typeof import("ts-morph");
 export const { Project, SyntaxKind, VariableDeclarationKind, ts } = tsMorph;
 
 export type {
+	ArrowFunction,
 	DiagnosticCategory,
 	DiagnosticMessageChain,
 	Project as TsMorphProject,
