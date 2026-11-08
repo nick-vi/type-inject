@@ -1,5 +1,12 @@
 # @nick-vi/type-inject-core
 
+## 1.1.4
+
+### Patch Changes
+
+- 5ac41e1: TypeExtractor: resolve path-alias and bare-package imports (e.g. `@/lib/models` with tsconfig `paths`) instead of only relative ones. Non-relative specifiers are followed only when they resolve inside the project directory and never descend into `node_modules`. Also extract arrow functions that only carry a return type annotation (`const makeTask = (id: string): Task => ...`), which were previously skipped when the variable itself had no type annotation.
+- e7ba28a: Fix `list_types` and `lookup_type` returning no results for solution-style tsconfigs. When the root `tsconfig.json` uses `"files": []` with project `references` (the default Vite scaffolding since 2023), `TypeLookup` now uses the TypeScript config parser and loads source files from every referenced tsconfig, including directory references and configs with comments or trailing commas, so type indexing works without changes to the project's build config.
+
 ## 1.1.3
 
 ### Patch Changes

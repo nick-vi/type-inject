@@ -1,5 +1,13 @@
 # @nick-vi/opencode-type-inject
 
+## 1.6.1
+
+### Patch Changes
+
+- Updated dependencies [5ac41e1]
+- Updated dependencies [e7ba28a]
+  - @nick-vi/type-inject-core@1.1.4
+
 ## 1.6.0
 
 ### Minor Changes
